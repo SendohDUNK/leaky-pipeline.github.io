@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unemployment Rate Visualization</title>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="js/female_data.js"></script>
+    <script src="js/male_data.js"></script>
+    <style>
+        .bar-male {
+            fill: #86a3ca;
+        }
+        .bar-female {
+            fill: #fcd19c
+        }
+    </style>
+</head>
+<body>
+
+<!-- Visualization for Feature 1 -->
+<h2>Unemployment rate by year and gender</h2>
+<label>Select Country:</label>
+<select id="countrySelector"></select>
+<label>Select Gender:</label>
+<select id="genderSelector">
+    <option value="both">Both</option>
+    <option value="male">Male</option>
+    <option value="female">Female</option>
+</select>
+<svg id="chart" width="1000" height="600"></svg>
+<button onclick="updateChart1()">Update Chart</button>
+
+<!-- Visualization for Feature 2 -->
+<h2>Comparison of unemployment rate by country and gender</h2>
+<label>Select Year:</label>
+<select id="yearSelector"></select>
+<label>Select Countries (Ctrl-click for multiple):</label>
+<select id="countriesSelector" multiple></select>
+<label>Select Gender:</label>
+<select id="genderSelector2">
+    <option value="both">Both</option>
+    <option value="male">Male</option>
+    <option value="female">Female</option>
+</select>
+<button onclick="updateChart2()">Update Chart</button>
+<svg id="chart2" width="1000" height="600"></svg>
+
+<script>
+    const svgWidth = 1000;
+    const svgHeight = 600;
+    const margin = {top: 30, right: 30, bottom: 70, left: 60};
+    const chartWidth = svgWidth - margin.left - margin.right;
+    const chartHeight = svgHeight - margin.top - margin.bottom;
+
+    const countries = maleData.map(d => d['Country Name']);
+    d3.select("#countrySelector")
+        .selectAll("option")
+        .data(countries)
+        .enter().append("option")
+        .attr("value", d => d)
+        .text(d => d);
+
+        const years = Object.keys(maleData[0]).filter(year => /^[0-9]{4}$/.test(year));
+    d3.select("#yearSelector")
+        .selectAll("option")
+        .data(years)
+        .enter().append("option")
+        .attr("value", d => d)
+        .text(d => d);
+
+
+    d3.select("#countriesSelector")
+        .selectAll("option")
+        .data(countries)
+        .enter().append("option")
+        .attr("value", d => d)
+        .text(d => d);
+
+    
+function updateChart1() {
+    let selectedCountry = d3.select("#countrySelector").node().value;
+    let selectedGender = d3.select("#genderSelector").node().value;
+
+    let maleCountryData = maleData.find(d => d['Country Name'] === selectedCountry);
+    let femaleCountryData = femaleData.find(d => d['Country Name'] === selectedCountry);
+
+    let years = Object.keys(maleCountryData);
+    let maleValues = years.map(year => +maleCountryData[year]);
+    let femaleValues = years.map(year => +femaleCountryData[year]);
+
+    let data = [];
+    for (let i = 0; i < years.length; i++) {
+        
+        if (selectedGender === "both" || selectedGender === "female") {
+            data.push({year: years[i], value: femaleValues[i], gender: "female"});
+        }
+        if (selectedGender === "both" || selectedGender === "male") {
+            data.push({year: years[i], value: maleValues[i], gender: "male"});
+        }
+    }
+    data = data.filter(d => d.year >= 1991 && d.year <= 2022);
+    let svg = d3.select("#chart").html("");
+    
+let x = d3.scaleBand()
+    .range([0, chartWidth])
+    .domain(d3.range(1991, 2023))
+    .padding(0.2);
+
+let y = d3.scaleLinear()
+    .domain([0, d3.max(data, d => d.value)])
+    .range([chartHeight, 0]);
+
+let chart = svg.append("g")
+    .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+chart.append("g")
+    .attr("transform", `translate(0, ${chartHeight})`)
+    .call(d3.axisBottom(x));
+
+chart.append("g")
+    .call(d3.axisLeft(y));
+
+chart.selectAll(".bar")
+    .data(data)
+    .enter().append("rect")
+    .attr("class", d => "bar-" + d.gender)
+    .attr("x", d => x(d.year))
+    .attr("y", d => y(d.value))
+    .attr("width", x.bandwidth())
+    .attr("height", d => chartHeight - y(d.value));
+
+}
+
+function updateChart2() {
+    let selectedYear = d3.select("#yearSelector").node().value;
+    let selectedCountries = Array.from(d3.select("#countriesSelector").node().selectedOptions).map(opt => opt.value);
+    let selectedGender = d3.select("#genderSelector2").node().value;
+
+    let data = [];
+
+    for (let country of selectedCountries) {
+        let maleCountryData = maleData.find(d => d['Country Name'] === country);
+        let femaleCountryData = femaleData.find(d => d['Country Name'] === country);
+
+       
+        if (selectedGender === "both" || selectedGender === "female") {
+            data.push({country: country, value: +femaleCountryData[selectedYear], gender: "female"});
+        }
+        if (selectedGender === "both" || selectedGender === "male") {
+            data.push({country: country, value: +maleCountryData[selectedYear], gender: "male"});
+        }
+    }
+
+    let svg = d3.select("#chart2").html("");
+    
+let x = d3.scaleBand()
+    .range([0, chartWidth])
+    .domain(data.map(d => d.country))
+    .padding(0.2);
+
+let y = d3.scaleLinear()
+    .domain([0, d3.max(data, d => d.value)])
+    .range([chartHeight, 0]);
+
+let chart = svg.append("g")
+    .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+chart.append("g")
+    .attr("transform", `translate(0, ${chartHeight})`)
+    .call(d3.axisBottom(x)).selectAll("text")
+    .attr("transform", "rotate(-45)")
+    .attr("text-anchor", "end");
+
+chart.append("g")
+    .call(d3.axisLeft(y));
+
+chart.selectAll(".bar")
+    .data(data)
+    .enter().append("rect")
+    .attr("class", d => "bar-" + d.gender)
+    .attr("x", d => x(d.country))
+    .attr("y", d => y(d.value))
+    .attr("width", x.bandwidth())
+    .attr("height", d => chartHeight - y(d.value));
+
+}
+
+document.getElementById("genderSelector").addEventListener("change", updateChart1);
+
+</script>
+</body>
+</html>
